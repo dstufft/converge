@@ -1,0 +1,8 @@
+*.py[co]
+*.egg-info/
+*.egg
+
+.tox/
+.coverage
+
+_build
