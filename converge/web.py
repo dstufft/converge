@@ -22,7 +22,7 @@ from flask import request
 from flask.ext.api import FlaskAPI, status
 
 from libcloud.storage.base import Container
-from libcloud.storage.types import Provider
+from libcloud.storage.types import Provider, ObjectDoesNotExistError
 from libcloud.storage.providers import get_driver
 
 from converge import marconi as queue
@@ -72,29 +72,34 @@ def build(revision_id, build_id):
         ),
     )
 
-    # Generate a tarball of the source files
-    tarxz = io.BytesIO()
-    with tarfile.open(
-            "{}.tar.xz".format(revision_id),
-            "w:xz",
-            fileobj=tarxz) as tarball:
-        for filename, file_data in request.data["source_files"].items():
-            # Encode our file_data using utf8 so we can store it
-            file_data = file_data.encode("utf8")
+    try:
+        container.get_object(
+            "files/{revision}.tar.xz".format(revision=revision_id)
+        )
+    except ObjectDoesNotExistError:
+        # Generate a tarball of the source files
+        tarxz = io.BytesIO()
+        with tarfile.open(
+                "{}.tar.xz".format(revision_id),
+                "w:xz",
+                fileobj=tarxz) as tarball:
+            for filename, file_data in request.data["source_files"].items():
+                # Encode our file_data using utf8 so we can store it
+                file_data = file_data.encode("utf8")
 
-            # Add the file to the tarball
-            info = tarfile.TarInfo(name=filename)
-            info.size = len(file_data)
-            tarball.addfile(tarinfo=info, fileobj=io.BytesIO(file_data))
+                # Add the file to the tarball
+                info = tarfile.TarInfo(name=filename)
+                info.size = len(file_data)
+                tarball.addfile(tarinfo=info, fileobj=io.BytesIO(file_data))
 
-    # Store the files tarball
-    container.upload_object_via_stream(
-        (
-            bytes([c for c in chunk if c is not None])
-            for chunk in chunks(tarxz.getvalue(), 2048)
-        ),
-        "files/{revision}.tar.xz".format(revision=revision_id),
-    )
+        # Store the files tarball
+        container.upload_object_via_stream(
+            (
+                bytes([c for c in chunk if c is not None])
+                for chunk in chunks(tarxz.getvalue(), 2048)
+            ),
+            "files/{revision}.tar.xz".format(revision=revision_id),
+        )
 
     try:
         queue.push(
