@@ -57,6 +57,7 @@ setuptools.setup(
 
     install_requires=[
         "apache-libcloud",
+        "coverage",
         "Flask",
         "requests",
     ],

@@ -71,9 +71,9 @@ def claim(user, key, queue, ttl=300, grace=300, region="iad"):
     resp = requests.post(
         (
             "https://{}.queues.api.rackspacecloud.com/v1/queues/{}/"
-            "claims".format(region, queue)
+            "claims?limit=1".format(region, queue)
         ),
-        data=json.dumps({"ttl": ttl, "grace": grace, "limit": 1}),
+        data=json.dumps({"ttl": ttl, "grace": grace}),
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json",
