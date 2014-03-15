@@ -38,12 +38,16 @@ app.config.update({
 @app.route("/revision/<revision_id>/<build_id>/", methods=["GET", "PUT"])
 def build(revision_id, build_id):
     # Store the data in the object store
-    storage = get_driver(Provider.CLOUDFILES)(
-        app.config["RACKSPACE_USER"],
-        app.config["RACKSPACE_APIKEY"],
-        region=app.config["RACKSPACE_REGION"],
+    container = Container(
+        app.config["BUCKET"],
+        None,
+        get_driver(Provider.CLOUDFILES)(
+            app.config["RACKSPACE_USER"],
+            app.config["RACKSPACE_APIKEY"],
+            region=app.config["RACKSPACE_REGION"],
+        ),
     )
-    storage.upload_object_via_stream(
+    container.upload_object_via_stream(
         iter(
             json.dumps({
                 "timestamp": datetime.datetime.utcnow().isoformat(),
@@ -51,7 +55,6 @@ def build(revision_id, build_id):
                 "data": request.data,
             })
         ),
-        Container(app.config["BUCKET"], None, storage),
         "data/{revision}/{build}".format(revision=revision_id, build=build_id),
         extra={"content_type": "application/json"},
     )
