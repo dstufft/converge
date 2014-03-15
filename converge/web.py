@@ -18,8 +18,7 @@ import lzma
 import os
 import tarfile
 
-from flask import request
-from flask.ext.api import FlaskAPI, status
+from flask import Flask, jsonify, request
 
 from libcloud.storage.base import Container
 from libcloud.storage.types import Provider, ObjectDoesNotExistError
@@ -29,7 +28,7 @@ from converge import marconi as queue
 from converge.utils import chunks
 
 
-app = FlaskAPI("converge")
+app = Flask("converge")
 
 # Pull in CONVERGE_* values from the environment
 app.config.update({
@@ -37,6 +36,11 @@ app.config.update({
     for k, v in os.environ.items()
     if k.upper().startswith("CONVERGE_")
 })
+
+
+@app.route("/<revision_id>/<path:path>", methods=["HEAD", "GET"])
+def html(revision_id, path):
+    pass
 
 
 @app.route("/revision/<revision_id>/<build_id>/", methods=["PUT"])
@@ -60,7 +64,7 @@ def build(revision_id, build_id):
                     json.dumps({
                         "timestamp": datetime.datetime.utcnow().isoformat(),
                         "address": request.remote_addr,
-                        "data": request.data["coverage_data"],
+                        "data": request.get_json()["coverage_data"],
                     }).encode("utf"),
                 ),
                 2048,
@@ -83,7 +87,8 @@ def build(revision_id, build_id):
                 "{}.tar.xz".format(revision_id),
                 "w:xz",
                 fileobj=tarxz) as tarball:
-            for filename, file_data in request.data["source_files"].items():
+            for filename, file_data in (
+                    request.get_json()["source_files"].items()):
                 # Encode our file_data using utf8 so we can store it
                 file_data = file_data.encode("utf8")
 
@@ -111,13 +116,17 @@ def build(revision_id, build_id):
         )
     except queue.QueueException:
         return (
-            {"success": False},
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            {"Retry-After": 30},
+            json.dumps({"success": False}),
+            503,
+            {"Content-Type": "application/json"},
         )
 
     # Return Information
-    return {"success": True}
+    return (
+        json.dumps({"success": True}),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 if __name__ == "__main__":

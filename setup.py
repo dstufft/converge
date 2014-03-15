@@ -57,7 +57,7 @@ setuptools.setup(
 
     install_requires=[
         "apache-libcloud",
-        "Flask-API",
+        "Flask",
         "requests",
     ],
 
