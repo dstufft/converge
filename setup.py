@@ -56,6 +56,9 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
 
     install_requires=[
+        "apache-libcloud",
+        "Flask-API",
+        "requests",
     ],
 
     zip_safe=False,
