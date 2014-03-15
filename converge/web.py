@@ -13,6 +13,7 @@
 # limitations under the License.
 import datetime
 import json
+import lzma
 import os
 
 from flask import request
@@ -23,6 +24,7 @@ from libcloud.storage.types import Provider
 from libcloud.storage.providers import get_driver
 
 from converge import marconi as queue
+from converge.utils import chunks
 
 
 app = FlaskAPI("converge")
@@ -48,15 +50,20 @@ def build(revision_id, build_id):
         ),
     )
     container.upload_object_via_stream(
-        iter(
-            json.dumps({
-                "timestamp": datetime.datetime.utcnow().isoformat(),
-                "address": request.remote_addr,
-                "data": request.data,
-            })
+        (
+            bytes([c for c in chunk if c is not None])
+            for chunk in chunks(
+                lzma.compress(
+                    json.dumps({
+                        "timestamp": datetime.datetime.utcnow().isoformat(),
+                        "address": request.remote_addr,
+                        "data": request.data,
+                    }).encode("utf"),
+                ),
+                2048,
+            )
         ),
         "data/{revision}/{build}".format(revision=revision_id, build=build_id),
-        extra={"content_type": "application/json"},
     )
 
     try:
