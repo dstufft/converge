@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import datetime
+import io
 import json
 import lzma
 import os
+import tarfile
 
 from flask import request
 from flask.ext.api import FlaskAPI, status
@@ -37,9 +39,8 @@ app.config.update({
 })
 
 
-@app.route("/revision/<revision_id>/<build_id>/", methods=["GET", "PUT"])
+@app.route("/revision/<revision_id>/<build_id>/", methods=["PUT"])
 def build(revision_id, build_id):
-    # Store the data in the object store
     container = Container(
         app.config["BUCKET"],
         None,
@@ -49,6 +50,8 @@ def build(revision_id, build_id):
             region=app.config["RACKSPACE_REGION"],
         ),
     )
+
+    # Store the coverage data
     container.upload_object_via_stream(
         (
             bytes([c for c in chunk if c is not None])
@@ -57,13 +60,40 @@ def build(revision_id, build_id):
                     json.dumps({
                         "timestamp": datetime.datetime.utcnow().isoformat(),
                         "address": request.remote_addr,
-                        "data": request.data,
+                        "data": request.data["coverage_data"],
                     }).encode("utf"),
                 ),
                 2048,
             )
         ),
-        "data/{revision}/{build}".format(revision=revision_id, build=build_id),
+        "data/{revision}/{build}.xz".format(
+            revision=revision_id,
+            build=build_id,
+        ),
+    )
+
+    # Generate a tarball of the source files
+    tarxz = io.BytesIO()
+    with tarfile.open(
+            "{}.tar.xz".format(revision_id),
+            "w:xz",
+            fileobj=tarxz) as tarball:
+        for filename, file_data in request.data["source_files"].items():
+            # Encode our file_data using utf8 so we can store it
+            file_data = file_data.encode("utf8")
+
+            # Add the file to the tarball
+            info = tarfile.TarInfo(name=filename)
+            info.size = len(file_data)
+            tarball.addfile(tarinfo=info, fileobj=io.BytesIO(file_data))
+
+    # Store the files tarball
+    container.upload_object_via_stream(
+        (
+            bytes([c for c in chunk if c is not None])
+            for chunk in chunks(tarxz.getvalue(), 2048)
+        ),
+        "files/{revision}.tar.xz".format(revision=revision_id),
     )
 
     try:
