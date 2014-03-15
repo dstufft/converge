@@ -11,9 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os.path
 import itertools
 
 
 def chunks(iterable, n):
     args = [iter(iterable)] * n
     return itertools.zip_longest(*args, fillvalue=None)
+
+
+def make_real_path(base, path):
+    return os.path.realpath(os.path.abspath(os.path.join(base, path)))
