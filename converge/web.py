@@ -69,6 +69,10 @@ def html(revision_id, path="index.html"):
 
 @app.route("/revision/<revision_id>/<build_id>/", methods=["PUT"])
 def build(revision_id, build_id):
+    # Check our authentication
+    if not request.headers.get("X-Auth-Token") == app.config["AUTH_TOKEN"]:
+        abort(403)
+
     container = Container(
         app.config["BUCKET"],
         None,
