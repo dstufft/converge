@@ -18,7 +18,7 @@ import lzma
 import os
 import tarfile
 
-from flask import Flask, jsonify, request
+from flask import Flask, abort, jsonify, request
 
 from libcloud.storage.base import Container
 from libcloud.storage.types import Provider, ObjectDoesNotExistError
@@ -38,9 +38,33 @@ app.config.update({
 })
 
 
+@app.route("/<revision_id>/", methods=["HEAD", "GET"])
 @app.route("/<revision_id>/<path:path>", methods=["HEAD", "GET"])
-def html(revision_id, path):
-    pass
+def html(revision_id, path="index.html"):
+    container = Container(
+        app.config["BUCKET"],
+        None,
+        get_driver(Provider.CLOUDFILES)(
+            app.config["RACKSPACE_USER"],
+            app.config["RACKSPACE_APIKEY"],
+            region=app.config["RACKSPACE_REGION"],
+        ),
+    )
+
+    # See if the requested file exists
+    try:
+        obj = container.get_object(
+            "html/{revision}/{path}".format(revision=revision_id, path=path)
+        )
+    except ObjectDoesNotExistError:
+        abort(404)
+
+    # Get the requested file
+    data = b""
+    for chunk in obj.as_stream():
+        data += chunk
+
+    return data, 200, {k.replace("_", "-"): v for k, v in obj.extra.items()}
 
 
 @app.route("/revision/<revision_id>/<build_id>/", methods=["PUT"])
