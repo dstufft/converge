@@ -18,7 +18,7 @@ import lzma
 import os
 import tarfile
 
-from flask import Flask, abort, jsonify, request
+from flask import Flask, abort, request
 
 from libcloud.storage.base import Container
 from libcloud.storage.types import Provider, ObjectDoesNotExistError
