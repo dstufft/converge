@@ -93,6 +93,9 @@ def build(revision_id, build_id):
                         "timestamp": datetime.datetime.utcnow().isoformat(),
                         "address": request.remote_addr,
                         "data": request.get_json()["coverage_data"],
+                        "meta": {
+                            "pr": request.get_json().get("pr"),
+                        }
                     }).encode("utf"),
                 ),
                 2048,
