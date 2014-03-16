@@ -95,6 +95,7 @@ def build(revision_id, build_id):
                         "data": request.get_json()["coverage_data"],
                         "meta": {
                             "pr": request.get_json().get("pr"),
+                            "branch": request.get_json().get("branch"),
                         }
                     }).encode("utf"),
                 ),
